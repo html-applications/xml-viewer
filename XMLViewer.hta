@@ -8,7 +8,7 @@
 	icon=msxml3.dll
 	innerBorder=no
 	contextMenu=no
-	version=1.0.0
+	version=1.0.1
 	author=mozers™, mozers@mail.ru, icq#256106175
 >
 <style type="text/css">
@@ -25,9 +25,7 @@ var html = '';
 
 // Возвращает строку пробелов указанной длины
 function Space(count){
-	var s = '';
-	for (var i=0; i<count; i++) s += '&nbsp;';
-	return s;
+	return new Array(count + 1).join('&nbsp;');
 }
 
 // Возвращает уровень вложенности узла
@@ -37,10 +35,8 @@ function GetFoldLevel(node_idx){
 
 // Возвращает индекс элемента в массиве
 function GetElementIndex(Arr, elem){
-	var i = 0;
-	while(Arr[i]){
-		if (Arr[i] == elem) return i;
-		i++;
+	for (var i=0, e; e = Arr[i++];) {
+		if (e == elem) return i-1;
 	}
 }
 
@@ -71,18 +67,12 @@ function ParseNode(Node, numLevel) {
 		html += '<tr><td id="idNode">4<td><span id="idLevel">'+Space(numLevel)+'</span>&nbsp;<font class="nn">' + Node.nodeName + '</font>'; //Name
 	}
 	if (Node.attributes) {
-		var Attrs = new Enumerator(Node.attributes);
-		for (; !Attrs.atEnd(); Attrs.moveNext()){
-			var nodeAttr = Attrs.item();
+		for (var i=0, nodeAttr; nodeAttr = Node.attributes[i++];) {
 			html += '&nbsp;&nbsp;<font class="na">' + nodeAttr.nodeName + "=" + nodeAttr.nodeValue + '</font>'; // Attr
 		}
 	}
-	if (Node.childNodes.length > 0) {
-		var nodeChilds = new Enumerator(Node.childNodes);
-		for (; !nodeChilds.atEnd(); nodeChilds.moveNext()){
-			var nodeChild = nodeChilds.item();
-			ParseNode (nodeChild, numLevel+1);
-		}
+	for (var i=0, nodeChild; nodeChild = Node.childNodes[i++];) {
+		ParseNode (nodeChild, numLevel+1);
 	}
 }
 
@@ -127,7 +117,6 @@ function SetFileAssociation(){
 // Действия при старте программы
 function on_load(){
 	document.title = idXMLViewer.applicationName.replace(/_/g,' ') + ' v.' + idXMLViewer.version;
-	SetFileAssociation();
 	var fname = idXMLViewer.commandLine;
 	if (/^"/.test(fname)) {
 		fname = fname.replace(/^"[^"]+"\s*/, '');
@@ -177,7 +166,7 @@ function on_load(){
 		ParseNode (xmlDoc.documentElement, 0);
 		html += '</table>'
 		document.body.innerHTML = html;
-		for (i=1;i<idXML.rows.length-1;i++){
+		for (i=1; i<idXML.rows.length-1; i++){
 			if (GetFoldLevel(i-1) < GetFoldLevel(i)) {
 				idNode[i-1].style.visibility = 'visible';
 				idXML.rows[i].onclick = function() {FoldChange(this)};
@@ -186,9 +175,20 @@ function on_load(){
 	}
 	window.resizeBy(idXML.offsetWidth-document.body.offsetWidth+40, 0);
 }
+
+// Обработка нажатий на клавиши
+function OnKeyDown(){
+	switch(event.keyCode){
+		case 27: // Esc
+			self.close();
+			break;
+		case 121: // F10
+			SetFileAssociation();
+	}
+}
 </script>
 </head>
-<body onload="on_load()" onkeydown="if (event.keyCode==27) self.close();">
+<body onload="on_load()" onkeydown="OnKeyDown();">
 <input id="idFileName" type="file" style="display:none;">
 </body>
 <script type="text/vbscript">
