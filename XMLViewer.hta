@@ -1,0 +1,211 @@
+<html>
+<head>
+<meta http-equiv=content-type content="text-html; charset=utf-8">
+<meta http-equiv=MSThemeCompatible content=yes>
+<hta:application
+	id=idXMLViewer
+	applicationName=XMLViewer
+	icon=msxml3.dll
+	innerBorder=no
+	contextMenu=no
+	version=1.0.0
+	author=mozers™, mozers@mail.ru, icq#256106175
+>
+<style type="text/css">
+	*  {font:8pt MS Shell Dlg; cursor:default;}
+	.nn {color:#B20000;}
+	.nt {font:bold 10pt Verdana; cursor:text;}
+	.na {color:#3300FC;}
+	#idNode {font:bold 10pt Marlett; visibility:hidden; color:red;}
+	#idLevel {white-space:nowrap; word-spacing:4px;}
+</style>
+<script type="text/javascript">
+// Объявления глобальных переменных
+var html = '';
+
+// Возвращает строку пробелов указанной длины
+function Space(count){
+	var s = '';
+	for (var i=0; i<count; i++) s += '&nbsp;';
+	return s;
+}
+
+// Возвращает уровень вложенности узла
+function GetFoldLevel(node_idx){
+	return idLevel[node_idx].innerText.length;
+}
+
+// Возвращает индекс элемента в массиве
+function GetElementIndex(Arr, elem){
+	var i = 0;
+	while(Arr[i]){
+		if (Arr[i] == elem) return i;
+		i++;
+	}
+}
+
+// Чтение текстового файла
+function ReadFile(filename, codepage) {
+	var content = '';
+	var FSO = new ActiveXObject("Scripting.FileSystemObject");
+	if (FSO.FileExists(filename)) {
+		if (FSO.GetFile(filename).Size > 0) {
+			with (new ActiveXObject("ADODB.Stream")) {
+				type = 2; // adTypeText
+				charset = codepage;
+				open();
+				loadFromFile(filename);
+				content = readText();
+				close();
+			}
+		}
+	}
+	return content;
+}
+
+// Рекурсивный парсинг узла
+function ParseNode(Node, numLevel) {
+	if (Node.nodeValue) {
+		html += ' : <font class="nt">' + Node.nodeValue.replace(/^\s+|\s+$/, '') + '</font>'; //Value
+	} else {
+		html += '<tr><td id="idNode">4<td><span id="idLevel">'+Space(numLevel)+'</span>&nbsp;<font class="nn">' + Node.nodeName + '</font>'; //Name
+	}
+	if (Node.attributes) {
+		var Attrs = new Enumerator(Node.attributes);
+		for (; !Attrs.atEnd(); Attrs.moveNext()){
+			var nodeAttr = Attrs.item();
+			html += '&nbsp;&nbsp;<font class="na">' + nodeAttr.nodeName + "=" + nodeAttr.nodeValue + '</font>'; // Attr
+		}
+	}
+	if (Node.childNodes.length > 0) {
+		var nodeChilds = new Enumerator(Node.childNodes);
+		for (; !nodeChilds.atEnd(); nodeChilds.moveNext()){
+			var nodeChild = nodeChilds.item();
+			ParseNode (nodeChild, numLevel+1);
+		}
+	}
+}
+
+// Свёртка/раскрытие фолда с нодом
+function FoldChange(obj_row){
+	function ShowHide(row_idx, level){
+		var sd = (idNode[row_idx].innerText == '4') ? 'none' : '';
+		for (var i=row_idx+1; idXML.rows.length-1; i++) {
+			if ((idLevel[i]) && (GetFoldLevel(i) > level)) {
+				idXML.rows[i+1].style.display = sd;
+			} else {
+				return;
+			}
+		}
+	}
+	var row_idx = GetElementIndex(idXML.rows, obj_row) - 1;
+	var level = GetFoldLevel(row_idx);
+	ShowHide (row_idx, level);
+	if (idNode[row_idx].innerText=='4'){
+		idNode[row_idx].innerText = 'v';
+		idXML.rows[row_idx+1].style.backgroundColor = "infobackground";
+	} else {
+		idNode[row_idx].innerText = '4';
+		idXML.rows[row_idx+1].style.backgroundColor = "";
+	}
+}
+
+function SetFileAssociation(){
+	var WshShell = new ActiveXObject("WScript.Shell");
+	var xml_viever_cmd = 'mshta.exe "' + unescape(document.URL).replace(/^file:\/\/(.+)$/, '$1') + '" %1';
+	var cmd = WshShell.RegRead('HKCR\\xmlfile\\shell\\Open\\command\\');
+	if (cmd != xml_viever_cmd) {
+		if (WshShell.Popup('Associate XML-files with the XMLViewer?', 0, "Set file association", 36) == 6) {
+			var default_reg = unescape(document.URL).replace(/^file:\/\/(.+?)[^\\]+$/, '$1') + 'return_xml_association.reg';
+			WshShell.Run('regedit \/E "' + default_reg + '" "HKEY_CLASSES_ROOT\\xmlfile\\shell\\Open"', 0, true);
+			RegDeleteKeys("xmlfile\\shell\\Open\\ddeexec");
+			WshShell.RegWrite('HKCR\\xmlfile\\shell\\Open\\command\\', xml_viever_cmd, 'REG_EXPAND_SZ');
+		}
+	}
+}
+
+// Действия при старте программы
+function on_load(){
+	document.title = idXMLViewer.applicationName.replace(/_/g,' ') + ' v.' + idXMLViewer.version;
+	SetFileAssociation();
+	var fname = idXMLViewer.commandLine;
+	if (/^"/.test(fname)) {
+		fname = fname.replace(/^"[^"]+"\s*/, '');
+	} else {
+		fname = fname.replace(/^[^\s]+\s*/, '');
+	}
+	fname = fname.replace(/^"(.+)"$/, '$1');
+	if (!fname) {
+		idFileName.click();
+		fname = idFileName.value;
+		if (!fname) self.close();
+	}
+
+	document.title = fname + ' - ' + document.title;
+	var xmlDoc=new ActiveXObject("Msxml2.DOMDocument");
+	xmlDoc.async = false;
+	xmlDoc.load (fname);
+	var err = xmlDoc.parseError;
+	if (err.errorCode) {
+		// обработка ошибки загрузки
+		var text = ReadFile(fname, 'windows-1251');
+		if (/Р.Р.Р./.test(text)) {
+			text = ReadFile(fname, 'utf-8');
+		}
+		var arrXML = text.split('\n');
+		arrXML.unshift('');
+		var xml = '<table id="idXML" cellpadding="0" cellspacing="0">';
+		for (var i=0; i<arrXML.length; i++) {
+			var line = arrXML[i].replace(/</g, '&lt;').replace(/>/g, '&gt;');
+			xml += '<tr><td width="20px" align="right">';
+			if (i>0) xml += '<font color="threeddarkshadow">' + i + '&nbsp;</font>';
+			if (i==err.line) {
+				xml += '<td id="idErr">' + line;
+			} else {
+				xml += '<td>' + line;
+			}
+		}
+		document.body.innerHTML = html + xml + '</table>';
+		idErr.style.backgroundColor = "yellow";
+		var t = idErr.innerText;
+		var a = t.substring(0, err.linepos-1).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+		var b = t.substring(err.linepos-1, t.length-1).replace(/</g, '&lt;').replace(/>/g, '&gt;').fontcolor("red");
+		idErr.innerHTML = a + b + '<br><span style="font:italic 8pt Verdana; color:#0066CC;">' + err.reason + '</span>';
+	} else {
+		// парсинг XML документа
+		html = '<table id="idXML" cellspacing="0"><td>';
+		ParseNode (xmlDoc.documentElement, 0);
+		html += '</table>'
+		document.body.innerHTML = html;
+		for (i=1;i<idXML.rows.length-1;i++){
+			if (GetFoldLevel(i-1) < GetFoldLevel(i)) {
+				idNode[i-1].style.visibility = 'visible';
+				idXML.rows[i].onclick = function() {FoldChange(this)};
+			}
+		}
+	}
+	window.resizeBy(idXML.offsetWidth-document.body.offsetWidth+40, 0);
+}
+</script>
+</head>
+<body onload="on_load()" onkeydown="if (event.keyCode==27) self.close();">
+<input id="idFileName" type="file" style="display:none;">
+</body>
+<script type="text/vbscript">
+Dim objRegistry
+Const HKEY_CLASSES_ROOT = &H80000000
+Sub RegDeleteKeys(strKeyPath)
+	Set objRegistry = GetObject("winmgmts:\\.\root\default:StdRegProv")
+	DeleteSubkeys strKeypath
+End Sub
+Sub DeleteSubkeys (strKeyPath)
+	objRegistry.EnumKey HKEY_CLASSES_ROOT, strKeyPath, arrSubkeys
+	If IsArray(arrSubkeys) Then
+		For Each strSubkey In arrSubkeys
+			DeleteSubkeys strKeyPath & "\" & strSubkey
+		Next
+	End If
+	objRegistry.DeleteKey HKEY_CLASSES_ROOT, strKeyPath
+End Sub
+</script>
+</html>
