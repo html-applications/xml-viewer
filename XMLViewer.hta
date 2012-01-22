@@ -8,7 +8,7 @@
 	icon=msxml3.dll
 	innerBorder=no
 	contextMenu=no
-	version=1.0.1
+	version=1.0.2
 	author=mozers™, mozers@mail.ru, icq#256106175
 >
 <style type="text/css">
@@ -116,6 +116,15 @@ function SetFileAssociation(){
 
 // Действия при старте программы
 function on_load(){
+	// Замена стандартной ф-ции window.resizeBy, которая иногда может вызывать ошибку "Access is Denied"
+	function WindowResize(w, h) {
+		try { 
+			window.resizeBy(w, h); 
+		} catch(e) {
+			setTimeout(function() {WindowResize(w, h)}, 1000);
+		}
+	}
+	// --------------------------------------------------------
 	document.title = idXMLViewer.applicationName.replace(/_/g,' ') + ' v.' + idXMLViewer.version;
 	var fname = idXMLViewer.commandLine;
 	if (/^"/.test(fname)) {
@@ -173,7 +182,7 @@ function on_load(){
 			}
 		}
 	}
-	window.resizeBy(idXML.offsetWidth-document.body.offsetWidth+40, 0);
+	WindowResize(idXML.offsetWidth-document.body.offsetWidth+40, 0);
 }
 
 // Обработка нажатий на клавиши
