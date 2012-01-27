@@ -8,213 +8,245 @@
 	icon=msxml3.dll
 	innerBorder=no
 	contextMenu=no
-	version=1.0.2
+	version=2.0.0
 	author=mozers™, mozers@mail.ru, icq#256106175
 >
 <style type="text/css">
-	*  {font:8pt MS Shell Dlg; cursor:default;}
-	.nn {color:#B20000;}
-	.nt {font:bold 10pt Verdana; cursor:text;}
-	.na {color:#3300FC;}
-	#idNode {font:bold 10pt Marlett; visibility:hidden; color:red;}
-	#idLevel {white-space:nowrap; word-spacing:4px;}
+	*            {font:8pt MS Shell Dlg; cursor:default;}                              /*общие определения*/
+	.nn          {color:buttonshadow; font-weight:bold;}                               /*имя узла*/
+	.nt          {font:bold 10pt Verdana; cursor:text; margin-left:4px; color:black;}  /*текст узла*/
+	.nan         {color:red; margin-left:4px;}                                         /*имя атрибута*/
+	.nav         {color:#3300FC;}                                                      /*значение атрибута*/
+	li.normal    {list-style-type:circle; color:threeddarkshadow;}                     /*обычный пункт списка*/
+	li.hidden    {list-style-type:square; color:red; background-color:infobackground;} /*выделенный пункт списка*/
+	li.error     {list-style-type:decimal; color:threeddarkshadow;}           /*пункт списка для ошибочного файла*/
+	li.reason    {list-style-type:none; font:italic 8pt Georgia; color:blue;} /*текст пояснения о причине ошибки*/
+	span.text    {color:black; font:bold 10pt Courier New;}                   /*текст строк ошибочного файла*/
+	span.errtext {color:red; font:bold 10pt Courier New;}                     /*текст строки после символа с ошибкой*/
 </style>
 <script type="text/javascript">
-// Объявления глобальных переменных
-var html = '';
-
-// Возвращает строку пробелов указанной длины
-function Space(count){
-	return new Array(count + 1).join('&nbsp;');
-}
-
-// Возвращает уровень вложенности узла
-function GetFoldLevel(node_idx){
-	return idLevel[node_idx].innerText.length;
-}
-
-// Возвращает индекс элемента в массиве
-function GetElementIndex(Arr, elem){
-	for (var i=0, e; e = Arr[i++];) {
-		if (e == elem) return i-1;
+	// Возвращает массив дочерних узлов указанного объекта имеющих тег tag
+	function Childs (obj, tag) {
+		var arr = [];
+		if ( (obj) && (obj.children) ) {
+			for(var i = 0, e; e = obj.children[i++];) {
+				if (e.tagName == tag) {
+					arr.push(e);
+				}
+			}
+		}
+		return arr;
 	}
-}
 
-// Чтение текстового файла
-function ReadFile(filename, codepage) {
-	var content = '';
-	var FSO = new ActiveXObject("Scripting.FileSystemObject");
-	if (FSO.FileExists(filename)) {
-		if (FSO.GetFile(filename).Size > 0) {
-			with (new ActiveXObject("ADODB.Stream")) {
-				type = 2; // adTypeText
-				charset = codepage;
-				open();
-				loadFromFile(filename);
-				content = readText();
-				close();
+	// Возвращает ближайший родительский (относительно obj) объект с тегом parentTagName
+	function GetParent(obj, parentTagName) {
+		if (obj.tagName == 'BODY') return;
+		return (obj.tagName==parentTagName) ? obj : GetParent(obj.parentNode, parentTagName);
+	}
+
+	// Выделение строки списка objLI и скрытие дочерних строк (снятие выделения и скрытия)
+	function ShowHide(objLI) {
+		var child_items = Childs(objLI, 'UL');
+		if (child_items.length > 0) {
+			var hide = objLI.className == 'normal';
+			// смена стиля строки назначением|снятием класса 'hidden'
+			objLI.className = (hide) ? 'hidden' : 'normal';
+			// скрытие|показ дочерних строк
+			for(var i = 0, ci; ci = child_items[i++];) {
+				ci.style.display = (hide) ? 'none' : '';
 			}
 		}
 	}
-	return content;
-}
 
-// Рекурсивный парсинг узла
-function ParseNode(Node, numLevel) {
-	if (Node.nodeValue) {
-		html += ' : <font class="nt">' + Node.nodeValue.replace(/^\s+|\s+$/, '') + '</font>'; //Value
-	} else {
-		html += '<tr><td id="idNode">4<td><span id="idLevel">'+Space(numLevel)+'</span>&nbsp;<font class="nn">' + Node.nodeName + '</font>'; //Name
+	// Вставка в objParent нового элемента списка
+	function InsertItem(objParent){
+		var ul = (objParent.tagName == 'UL') ? objParent : objParent.appendChild(document.createElement('UL'));
+		var li = ul.appendChild(document.createElement('LI'));
+		li.className = 'normal';
+		return li;
 	}
-	if (Node.attributes) {
-		for (var i=0, nodeAttr; nodeAttr = Node.attributes[i++];) {
-			html += '&nbsp;&nbsp;<font class="na">' + nodeAttr.nodeName + "=" + nodeAttr.nodeValue + '</font>'; // Attr
-		}
-	}
-	for (var i=0, nodeChild; nodeChild = Node.childNodes[i++];) {
-		ParseNode (nodeChild, numLevel+1);
-	}
-}
 
-// Свёртка/раскрытие фолда с нодом
-function FoldChange(obj_row){
-	function ShowHide(row_idx, level){
-		var sd = (idNode[row_idx].innerText == '4') ? 'none' : '';
-		for (var i=row_idx+1; idXML.rows.length-1; i++) {
-			if ((idLevel[i]) && (GetFoldLevel(i) > level)) {
-				idXML.rows[i+1].style.display = sd;
-			} else {
-				return;
+	// Рекурсивный парсинг узла Node с записью содержимого в пункт списка Item
+	function ParseNode(Node, Item) {
+		if (Node.nodeName != '#text') Item.innerHTML = '<span class="nn">' + Node.nodeName + '</span>'; // Name
+		if (Node.attributes) {
+			for (var i=0, nodeAttr; nodeAttr = Node.attributes[i++];) {
+				Item.innerHTML += '<span class="nan">' + nodeAttr.nodeName + '</span>=<span class="nav">' + nodeAttr.nodeValue + '</span>'; // Attributes
 			}
 		}
-	}
-	var row_idx = GetElementIndex(idXML.rows, obj_row) - 1;
-	var level = GetFoldLevel(row_idx);
-	ShowHide (row_idx, level);
-	if (idNode[row_idx].innerText=='4'){
-		idNode[row_idx].innerText = 'v';
-		idXML.rows[row_idx+1].style.backgroundColor = "infobackground";
-	} else {
-		idNode[row_idx].innerText = '4';
-		idXML.rows[row_idx+1].style.backgroundColor = "";
-	}
-}
-
-function SetFileAssociation(){
-	var WshShell = new ActiveXObject("WScript.Shell");
-	var xml_viever_cmd = 'mshta.exe "' + unescape(document.URL).replace(/^file:\/\/(.+)$/, '$1') + '" %1';
-	var cmd = WshShell.RegRead('HKCR\\xmlfile\\shell\\Open\\command\\');
-	if (cmd != xml_viever_cmd) {
-		if (WshShell.Popup('Associate XML-files with the XMLViewer?', 0, "Set file association", 36) == 6) {
-			var default_reg = unescape(document.URL).replace(/^file:\/\/(.+?)[^\\]+$/, '$1') + 'return_xml_association.reg';
-			WshShell.Run('regedit \/E "' + default_reg + '" "HKEY_CLASSES_ROOT\\xmlfile\\shell\\Open"', 0, true);
-			RegDeleteKeys("xmlfile\\shell\\Open\\ddeexec");
-			WshShell.RegWrite('HKCR\\xmlfile\\shell\\Open\\command\\', xml_viever_cmd, 'REG_EXPAND_SZ');
+		if (Node.nodeValue) {
+			Item.innerHTML += '<span class="nt">' + Node.nodeValue.replace(/^\s+|\s+$/, '') + '</span>'; // Value
+		}
+		for (var i=0, nodeChild; nodeChild = Node.childNodes[i++];) {
+			var newItem = (nodeChild.nodeName == '#text') ? Item : InsertItem(Item);
+			ParseNode (nodeChild, newItem);
 		}
 	}
-}
 
-// Действия при старте программы
-function on_load(){
-	// Замена стандартной ф-ции window.resizeBy, которая иногда может вызывать ошибку "Access is Denied"
-	function WindowResize(w, h) {
+	// Обработка нажатий на клавиши
+	function OnKeyDown(){
+		switch(event.keyCode){
+			case 27: // Esc
+				self.close();
+				break;
+			case 121: // F10
+				SetFileAssociation();
+		}
+	}
+
+	// Замена стандартной ф-ции window.resizeTo, которая иногда может вызывать ошибку "Access is Denied"
+	function WindowResizeTo(w, h) {
 		try { 
-			window.resizeBy(w, h); 
+			window.resizeTo(w, h); 
 		} catch(e) {
-			setTimeout(function() {WindowResize(w, h)}, 1000);
+			setTimeout(function() {WindowResizeTo(w, h)}, 1000);
 		}
 	}
-	// --------------------------------------------------------
-	document.title = idXMLViewer.applicationName.replace(/_/g,' ') + ' v.' + idXMLViewer.version;
-	var fname = idXMLViewer.commandLine;
-	if (/^"/.test(fname)) {
-		fname = fname.replace(/^"[^"]+"\s*/, '');
-	} else {
-		fname = fname.replace(/^[^\s]+\s*/, '');
-	}
-	fname = fname.replace(/^"(.+)"$/, '$1');
-	if (!fname) {
-		idFileName.click();
-		fname = idFileName.value;
-		if (!fname) self.close();
+
+	// Настройка размера окна (исходя из размера обрамляющей список таблицы idRange)
+	function WindowSetSize(){
+		var width_max = screen.width - 200;
+		var height_max = screen.height - 100;
+		var width = idRange.offsetWidth + 100;
+		if (width > width_max) width = width_max;
+		var height = idRange.offsetHeight + 80;
+		if (height > height_max) height = height_max;
+		WindowResizeTo(width, height);
 	}
 
-	document.title = fname + ' - ' + document.title;
-	var xmlDoc=new ActiveXObject("Msxml2.DOMDocument");
-	xmlDoc.async = false;
-	xmlDoc.load (fname);
-	var err = xmlDoc.parseError;
-	if (err.errorCode) {
-		// обработка ошибки загрузки
+	// Действия при старте программы
+	function on_load(){
+		document.title = idXMLViewer.applicationName.replace(/_/g,' ') + ' v.' + idXMLViewer.version;
+		// парсинг командной строки
+		var fname = idXMLViewer.commandLine;
+		fname = (/^"/.test(fname)) ? (fname.replace(/^"[^"]+"\s*/, '')) : (fname.replace(/^[^\s]+\s*/, ''));
+		fname = fname.replace(/^"(.+)"$/, '$1');
+		if (!fname) {
+			idFileName.click(); // диалог выбора имени файла
+			fname = idFileName.value;
+			if (!fname) self.close();
+		}
+		document.title = fname + ' - ' + document.title;
+
+		// загрузка XML документа
+		var xmlDoc = new ActiveXObject("Msxml2.DOMDocument");
+		xmlDoc.async = false;
+		xmlDoc.load (fname);
+		var err = xmlDoc.parseError;
+		if (err.errorCode) {
+			// показ XML как текста
+			ParseError(fname, err);
+		} else {
+			// парсинг XML документа
+			ParseNode (xmlDoc.documentElement, InsertItem(idRange));
+			// добавляем эвент для свертки строк
+			document.onclick = function() {
+				var parentLI = GetParent(event.srcElement, 'LI');
+				if (parentLI) ShowHide(parentLI);
+			};
+		}
+		WindowSetSize();
+	}
+</script>
+</head>
+<body onload="on_load()" onkeydown="OnKeyDown();">
+	<table><tr><td id="idRange"></table>
+	<input id="idFileName" type="file" style="display:none;">
+</body>
+<script type="text/javascript">
+	// Чтение текстового файла
+	function ReadFile(filename, codepage) {
+		var content = '';
+		var FSO = new ActiveXObject("Scripting.FileSystemObject");
+		if (FSO.FileExists(filename)) {
+			if (FSO.GetFile(filename).Size > 0) {
+				with (new ActiveXObject("ADODB.Stream")) {
+					type = 2; // adTypeText
+					charset = codepage;
+					open();
+					loadFromFile(filename);
+					content = readText();
+					close();
+				}
+			}
+		}
+		return content;
+	}
+
+	// Обработка ошибки загрузки (показ XML как текста)
+	function ParseError(fname, err){
+		function ToPrintTag(str) {
+			return str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+		}
 		var text = ReadFile(fname, 'windows-1251');
 		if (/Р.Р.Р./.test(text)) {
 			text = ReadFile(fname, 'utf-8');
 		}
 		var arrXML = text.split('\n');
-		arrXML.unshift('');
-		var xml = '<table id="idXML" cellpadding="0" cellspacing="0">';
-		for (var i=0; i<arrXML.length; i++) {
-			var line = arrXML[i].replace(/</g, '&lt;').replace(/>/g, '&gt;');
-			xml += '<tr><td width="20px" align="right">';
-			if (i>0) xml += '<font color="threeddarkshadow">' + i + '&nbsp;</font>';
-			if (i==err.line) {
-				xml += '<td id="idErr">' + line;
-			} else {
-				xml += '<td>' + line;
+		var ul = idRange.appendChild(document.createElement('UL'));
+		for(var i = 0, line; line = arrXML[i++];) {
+			with (ul.appendChild(document.createElement('LI'))) {
+				className = 'error';
+				innerText = line;
+				innerHTML = '<span class="text">' + innerHTML + '</span>';
 			}
 		}
-		document.body.innerHTML = html + xml + '</table>';
-		idErr.style.backgroundColor = "yellow";
-		var t = idErr.innerText;
-		var a = t.substring(0, err.linepos-1).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-		var b = t.substring(err.linepos-1, t.length-1).replace(/</g, '&lt;').replace(/>/g, '&gt;').fontcolor("red");
-		idErr.innerHTML = a + b + '<br><span style="font:italic 8pt Verdana; color:#0066CC;">' + err.reason + '</span>';
-	} else {
-		// парсинг XML документа
-		html = '<table id="idXML" cellspacing="0"><td>';
-		ParseNode (xmlDoc.documentElement, 0);
-		html += '</table>'
-		document.body.innerHTML = html;
-		for (i=1; i<idXML.rows.length-1; i++){
-			if (GetFoldLevel(i-1) < GetFoldLevel(i)) {
-				idNode[i-1].style.visibility = 'visible';
-				idXML.rows[i].onclick = function() {FoldChange(this)};
-			}
+		// Подсветка строки с ошибкой
+		var err_line = ul.children[err.line-1];
+		var err_line_text = err_line.innerText.match(new RegExp('^(.{'+(err.linepos-1)+'})(.*)$'));
+		err_line.innerHTML = '<span class="text">' + ToPrintTag(err_line_text[1])
+					+ '</span><span class="errtext">' + ToPrintTag(err_line_text[2]) + '</span>';
+		err_line.style.backgroundColor = "yellow";
+		// Вывод пояснения о причине ошибки
+		with (InsertItem(err_line)) {
+			className = 'reason';
+			innerHTML = err.reason;
 		}
 	}
-	WindowResize(idXML.offsetWidth-document.body.offsetWidth+40, 0);
-}
 
-// Обработка нажатий на клавиши
-function OnKeyDown(){
-	switch(event.keyCode){
-		case 27: // Esc
-			self.close();
-			break;
-		case 121: // F10
-			SetFileAssociation();
+	// Связывание программы с xml файлами
+	function SetFileAssociation(){
+		var WshShell = new ActiveXObject("WScript.Shell");
+		var xml_viever_cmd = 'mshta.exe "' + unescape(document.URL).replace(/^file:\/\/(.+)$/, '$1') + '" %1';
+		var cmd = WshShell.RegRead('HKCR\\xmlfile\\shell\\Open\\command\\');
+		if (cmd != xml_viever_cmd) {
+			if (WshShell.Popup('Associate XML-files with the XMLViewer?', 0, "Set file association", 36) == 6) {
+				var default_reg = unescape(document.URL).replace(/^file:\/\/(.+?)[^\\]+$/, '$1') + 'return_xml_association.reg';
+				WshShell.Run('regedit \/E "' + default_reg + '" "HKEY_CLASSES_ROOT\\xmlfile\\shell\\Open"', 0, true);
+				RegDeleteKeys("HKCR\\xmlfile\\shell\\Open\\ddeexec");
+				WshShell.RegWrite('HKCR\\xmlfile\\shell\\Open\\command\\', xml_viever_cmd, 'REG_EXPAND_SZ');
+			}
+		}
 	}
-}
-</script>
-</head>
-<body onload="on_load()" onkeydown="OnKeyDown();">
-<input id="idFileName" type="file" style="display:none;">
-</body>
-<script type="text/vbscript">
-Dim objRegistry
-Const HKEY_CLASSES_ROOT = &H80000000
-Sub RegDeleteKeys(strKeyPath)
-	Set objRegistry = GetObject("winmgmts:\\.\root\default:StdRegProv")
-	DeleteSubkeys strKeypath
-End Sub
-Sub DeleteSubkeys (strKeyPath)
-	objRegistry.EnumKey HKEY_CLASSES_ROOT, strKeyPath, arrSubkeys
-	If IsArray(arrSubkeys) Then
-		For Each strSubkey In arrSubkeys
-			DeleteSubkeys strKeyPath & "\" & strSubkey
-		Next
-	End If
-	objRegistry.DeleteKey HKEY_CLASSES_ROOT, strKeyPath
-End Sub
+
+	// Удаление ключа реестра (включая все вложенные)
+	function RegDeleteKeys(strFullPath){
+		function DeleteSubkeys (subKey){
+			var oMethod = oReg.Methods_.Item("EnumKey");
+			var oInParam = oMethod.InParameters.SpawnInstance_();
+			oInParam.hDefKey = defKey;
+			oInParam.sSubKeyName = subKey;
+			var oOutParam = oReg.ExecMethod_(oMethod.Name, oInParam);
+			if (oOutParam.sNames != null) {
+				var aNames = oOutParam.sNames.toArray();
+				for (var i=0, keyName; keyName = aNames[i++];) {
+					DeleteSubkeys(subKey + "\\" + keyName);
+				}
+			}
+			oReg.DeleteKey (defKey, subKey);
+		}
+		// ----------------------------------------------------------------
+		var aKeyPath = strFullPath.match(/^([\w_]+)\\(.+)$/);
+		if (!aKeyPath) return;
+		var aRoot = {HKEY_LOCAL_MACHINE:  0x80000002, HKLM: 0x80000002
+					,HKEY_USERS:          0x80000003, HKU:  0x80000003
+					,HKEY_CURRENT_USER:   0x80000001, HKCU: 0x80000001
+					,HKEY_CLASSES_ROOT:   0x80000000, HKCR: 0x80000000
+					,HKEY_CURRENT_CONFIG: 0x80000005, HKCC: 0x80000005}
+		var defKey = aRoot[aKeyPath[1]];
+		if (!defKey) return;
+		var oReg = GetObject("winmgmts:\\\\.\\root\\default:StdRegProv");
+		DeleteSubkeys (aKeyPath[2]);
+	}
 </script>
 </html>
