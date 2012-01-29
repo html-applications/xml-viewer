@@ -8,7 +8,7 @@
 	icon=msxml3.dll
 	innerBorder=no
 	contextMenu=no
-	version=2.2.1
+	version=2.2.2
 	author=mozers™, mozers@mail.ru, icq#256106175
 >
 <style type="text/css">
@@ -22,7 +22,7 @@
 	li            {list-style-type:circle; color:threeddarkshadow;}            /*обычный пункт списка*/
 	li.hidden     {list-style-type:square; background-color:#FFFF99;}          /*выделенный пункт списка*/
 
-	li.error      {list-style-type:decimal; color:threeddarkshadow;}           /*пункт списка для ошибочного файла*/
+	li.srctext    {list-style-type:decimal; color:threeddarkshadow;}           /*пункт списка для ошибочного файла*/
 	li.reason     {list-style-type:none; font:italic 8pt Georgia; color:blue;} /*текст пояснения о причине ошибки*/
 	span.srctext  {color:black; font:bold 10pt Courier New;}                   /*текст строк ошибочного файла*/
 	span.errtext  {color:red; font:bold 10pt Courier New;}                     /*текст строки после символа с ошибкой*/
@@ -52,6 +52,15 @@
 		return (obj.tagName==parentTagName) ? obj : GetParent(obj.parentNode, parentTagName);
 	}
 
+	// Создает и возвращает дочерний (относительно oParent) элемент
+	// с заданным тегом sTag, классом sClass и текстом sText
+	function CreateElement(oParent, sTag, sClass, sText) {
+		var newElement = oParent.appendChild(document.createElement(sTag));
+		if (sClass) newElement.className = sClass;
+		if (sText)  newElement.innerText = sText;
+		return newElement;
+	}
+
 	// Выделение строки списка objLI и скрытие дочерних строк (снятие выделения и скрытия)
 	function ShowHide(objLI) {
 		var child_items = Childs(objLI, 'UL');
@@ -68,21 +77,22 @@
 
 	// Рекурсивный парсинг узла Node с записью содержимого в пункт списка Item
 	function ParseNode(Node, Item) {
-		var oLI = Item.appendChild(document.createElement('LI'));
-		var oSPAN = oLI.appendChild(document.createElement('SPAN'));
-		oSPAN.className = 'text';
-		oSPAN.innerHTML = '<span class="nn">' + Node.nodeName + '</span>'; // Name
+		var oLI = CreateElement(Item, 'LI');
+		var oSPAN = CreateElement(oLI, 'SPAN', 'text');
+		CreateElement(oSPAN, 'SPAN', 'nn', Node.nodeName); // Name
 		if (Node.attributes) {
 			for (var i=0, nodeAttr; nodeAttr = Node.attributes[i++];) {
-				oSPAN.innerHTML += '<span class="nan">' + nodeAttr.nodeName + '</span>:<span class="nav">' + nodeAttr.nodeValue + '</span>'; // Attributes
+				CreateElement(oSPAN, 'SPAN', 'nan', nodeAttr.nodeName); // Attribute Name
+				oSPAN.innerHTML += ':';
+				CreateElement(oSPAN, 'SPAN', 'nav', nodeAttr.nodeValue); // Attribute Value
 			}
 		}
 		for (var i=0, nodeChild; nodeChild = Node.childNodes[i++];) {
 			if (nodeChild.nodeName == '#text') {
-				oSPAN.innerHTML += '<span class="nt">' + nodeChild.nodeValue.replace(/^\s+|\s+$/, '') + '</span>'; // Value
+				CreateElement(oSPAN, 'SPAN', 'nt', nodeChild.nodeValue.replace(/^\s+|\s+$/, '')); // Value
 			} else {
 				oLI.style.color = '#990066';
-				var oUL = oLI.appendChild(document.createElement('UL'));
+				var oUL = CreateElement(oLI, 'UL');
 				ParseNode (nodeChild, oUL);
 			}
 		}
@@ -147,7 +157,7 @@
 			ParseError(fname, err);
 		} else {
 			// парсинг XML документа
-			var oUL = idRange.appendChild(document.createElement('UL'));
+			var oUL = CreateElement(idRange, 'UL');
 			ParseNode (xmlDoc.documentElement, oUL);
 			// добавляем эвент для свертки строк
 			document.onclick = function() {
@@ -193,33 +203,22 @@
 
 	// Обработка ошибки загрузки (показ XML как текста)
 	function ParseError(fname, err){
-		function ToPrintTag(str) {
-			return str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-		}
 		var text = ReadFile(fname, 'windows-1251');
-		if (/Р.Р.Р./.test(text)) {
-			text = ReadFile(fname, 'utf-8');
-		}
+		if (/Р.Р.Р./.test(text)) text = ReadFile(fname, 'utf-8');
 		var arrXML = text.split('\n');
-		var ul = idRange.appendChild(document.createElement('UL'));
+		var oUL = CreateElement(idRange, 'UL');
 		for(var i = 0, line; line = arrXML[i++];) {
-			with (ul.appendChild(document.createElement('LI'))) {
-				className = 'error';
-				innerText = line;
-				innerHTML = '<span class="srctext">' + innerHTML + '</span>';
+			var oLI = CreateElement(oUL, 'LI', 'srctext');
+			if (i == err.line) { // подсветка строки с ошибкой
+				oLI.style.backgroundColor = "yellow"; 
+				var err_line_text = line.match(new RegExp('^(.{'+(err.linepos-1)+'})(.*)$'));
+				var oSPAN = CreateElement(oLI, 'SPAN', 'srctext', err_line_text[1]);
+				CreateElement(oSPAN, 'SPAN', 'errtext', err_line_text[2]); // текст после ошибочного символа
+				CreateElement(CreateElement(oLI, 'UL'), 'LI', 'reason', err.reason); // пояснение о причине ошибки
+			} else {
+				oSPAN = CreateElement(oLI, 'SPAN', 'srctext', line);
 			}
 		}
-		// Подсветка строки с ошибкой
-		var err_line = ul.children[err.line-1];
-		var err_line_text = err_line.innerText.match(new RegExp('^(.{'+(err.linepos-1)+'})(.*)$'));
-		err_line.innerHTML = '<span class="text">' + ToPrintTag(err_line_text[1])
-					+ '</span><span class="errtext">' + ToPrintTag(err_line_text[2]) + '</span>';
-		err_line.style.backgroundColor = "yellow";
-		// Вывод пояснения о причине ошибки
-		var reasonUL = err_line.appendChild(document.createElement('UL'));
-		var reasonLI = reasonUL.appendChild(document.createElement('LI'));
-		reasonLI.className = 'reason';
-		reasonLI.innerHTML = err.reason;
 	}
 
 	// Связывание программы с xml файлами
