@@ -8,7 +8,7 @@
 	icon=msxml3.dll
 	innerBorder=no
 	contextMenu=no
-	version=2.2.0
+	version=2.2.1
 	author=mozers™, mozers@mail.ru, icq#256106175
 >
 <style type="text/css">
@@ -20,7 +20,7 @@
 	span.nav      {color:#3300FC;}                                             /*значение атрибута*/
 
 	li            {list-style-type:circle; color:threeddarkshadow;}            /*обычный пункт списка*/
-	li.hidden     {list-style-type:square; background-color:#FFFF99;}   /*выделенный пункт списка*/
+	li.hidden     {list-style-type:square; background-color:#FFFF99;}          /*выделенный пункт списка*/
 
 	li.error      {list-style-type:decimal; color:threeddarkshadow;}           /*пункт списка для ошибочного файла*/
 	li.reason     {list-style-type:none; font:italic 8pt Georgia; color:blue;} /*текст пояснения о причине ошибки*/
@@ -216,10 +216,10 @@
 					+ '</span><span class="errtext">' + ToPrintTag(err_line_text[2]) + '</span>';
 		err_line.style.backgroundColor = "yellow";
 		// Вывод пояснения о причине ошибки
-		with (InsertItem(err_line)) {
-			className = 'reason';
-			innerHTML = err.reason;
-		}
+		var reasonUL = err_line.appendChild(document.createElement('UL'));
+		var reasonLI = reasonUL.appendChild(document.createElement('LI'));
+		reasonLI.className = 'reason';
+		reasonLI.innerHTML = err.reason;
 	}
 
 	// Связывание программы с xml файлами
