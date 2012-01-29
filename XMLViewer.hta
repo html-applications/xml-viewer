@@ -8,21 +8,25 @@
 	icon=msxml3.dll
 	innerBorder=no
 	contextMenu=no
-	version=2.1.0
+	version=2.2.0
 	author=mozers™, mozers@mail.ru, icq#256106175
 >
 <style type="text/css">
-	*             {font:8pt MS Shell Dlg; cursor:default;}                              /*общие определения*/
-	.nn           {color:buttonshadow; font-weight:bold;}                               /*имя узла*/
-	.nt           {font:bold 10pt Verdana; cursor:text; margin-left:4px; color:black;}  /*текст узла*/
-	.nan          {color:red; margin-left:4px;}                                         /*имя атрибута*/
-	.nav          {color:#3300FC;}                                                      /*значение атрибута*/
-	li.normal     {list-style-type:circle; color:threeddarkshadow;}                     /*обычный пункт списка*/
-	li.hidden     {list-style-type:square; color:red; background-color:infobackground;} /*выделенный пункт списка*/
+	*             {font:8pt MS Shell Dlg; cursor:default;}                     /*общие определения*/
+	span.text     {color:black;}                                               /*текст пункта списка*/
+	span.nn       {color:buttonshadow; font-weight:bold;}                      /*имя узла*/
+	span.nt       {font:bold 10pt Verdana; cursor:text; margin-left:4px;}      /*текст узла*/
+	span.nan      {color:red; margin-left:4px;}                                /*имя атрибута*/
+	span.nav      {color:#3300FC;}                                             /*значение атрибута*/
+
+	li            {list-style-type:circle; color:threeddarkshadow;}            /*обычный пункт списка*/
+	li.hidden     {list-style-type:square; background-color:#FFFF99;}   /*выделенный пункт списка*/
+
 	li.error      {list-style-type:decimal; color:threeddarkshadow;}           /*пункт списка для ошибочного файла*/
 	li.reason     {list-style-type:none; font:italic 8pt Georgia; color:blue;} /*текст пояснения о причине ошибки*/
-	span.text     {color:black; font:bold 10pt Courier New;}                   /*текст строк ошибочного файла*/
+	span.srctext  {color:black; font:bold 10pt Courier New;}                   /*текст строк ошибочного файла*/
 	span.errtext  {color:red; font:bold 10pt Courier New;}                     /*текст строки после символа с ошибкой*/
+
 	table.help    {position:relative; top:-8px; left:-8px; background-color:#FFFFCC; border:1px solid #999900;}                              /*подсказка*/
 	div.help      {position:absolute; top:40px; left:expression(document.body.offsetWidth-idHelp.offsetWidth-40); background-color:#C0C0C0;} /*подсказка тень*/
 	.help td.key  {font:normal 8pt Arial Black; color:#993300;}                                                                              /*подсказка клавиши*/
@@ -52,9 +56,9 @@
 	function ShowHide(objLI) {
 		var child_items = Childs(objLI, 'UL');
 		if (child_items.length > 0) {
-			var hide = objLI.className == 'normal';
+			var hide = objLI.className != 'hidden';
 			// смена стиля строки назначением|снятием класса 'hidden'
-			objLI.className = (hide) ? 'hidden' : 'normal';
+			objLI.className = (hide) ? 'hidden' : '';
 			// скрытие|показ дочерних строк
 			for(var i = 0, ci; ci = child_items[i++];) {
 				ci.style.display = (hide) ? 'none' : '';
@@ -62,28 +66,25 @@
 		}
 	}
 
-	// Вставка в objParent нового элемента списка
-	function InsertItem(objParent){
-		var ul = (objParent.tagName == 'UL') ? objParent : objParent.appendChild(document.createElement('UL'));
-		var li = ul.appendChild(document.createElement('LI'));
-		li.className = 'normal';
-		return li;
-	}
-
 	// Рекурсивный парсинг узла Node с записью содержимого в пункт списка Item
 	function ParseNode(Node, Item) {
-		if (Node.nodeName != '#text') Item.innerHTML = '<span class="nn">' + Node.nodeName + '</span>'; // Name
+		var oLI = Item.appendChild(document.createElement('LI'));
+		var oSPAN = oLI.appendChild(document.createElement('SPAN'));
+		oSPAN.className = 'text';
+		oSPAN.innerHTML = '<span class="nn">' + Node.nodeName + '</span>'; // Name
 		if (Node.attributes) {
 			for (var i=0, nodeAttr; nodeAttr = Node.attributes[i++];) {
-				Item.innerHTML += '<span class="nan">' + nodeAttr.nodeName + '</span>=<span class="nav">' + nodeAttr.nodeValue + '</span>'; // Attributes
+				oSPAN.innerHTML += '<span class="nan">' + nodeAttr.nodeName + '</span>:<span class="nav">' + nodeAttr.nodeValue + '</span>'; // Attributes
 			}
 		}
-		if (Node.nodeValue) {
-			Item.innerHTML += '<span class="nt">' + Node.nodeValue.replace(/^\s+|\s+$/, '') + '</span>'; // Value
-		}
 		for (var i=0, nodeChild; nodeChild = Node.childNodes[i++];) {
-			var newItem = (nodeChild.nodeName == '#text') ? Item : InsertItem(Item);
-			ParseNode (nodeChild, newItem);
+			if (nodeChild.nodeName == '#text') {
+				oSPAN.innerHTML += '<span class="nt">' + nodeChild.nodeValue.replace(/^\s+|\s+$/, '') + '</span>'; // Value
+			} else {
+				oLI.style.color = '#990066';
+				var oUL = oLI.appendChild(document.createElement('UL'));
+				ParseNode (nodeChild, oUL);
+			}
 		}
 	}
 
@@ -146,7 +147,8 @@
 			ParseError(fname, err);
 		} else {
 			// парсинг XML документа
-			ParseNode (xmlDoc.documentElement, InsertItem(idRange));
+			var oUL = idRange.appendChild(document.createElement('UL'));
+			ParseNode (xmlDoc.documentElement, oUL);
 			// добавляем эвент для свертки строк
 			document.onclick = function() {
 				var parentLI = GetParent(event.srcElement, 'LI');
@@ -204,7 +206,7 @@
 			with (ul.appendChild(document.createElement('LI'))) {
 				className = 'error';
 				innerText = line;
-				innerHTML = '<span class="text">' + innerHTML + '</span>';
+				innerHTML = '<span class="srctext">' + innerHTML + '</span>';
 			}
 		}
 		// Подсветка строки с ошибкой
