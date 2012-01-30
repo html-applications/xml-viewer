@@ -8,16 +8,16 @@
 	icon=msxml3.dll
 	innerBorder=no
 	contextMenu=no
-	version=2.2.2
+	version=2.2.3
 	author=mozers™, mozers@mail.ru, icq#256106175
 >
 <style type="text/css">
 	*             {font:8pt MS Shell Dlg; cursor:default;}                     /*общие определения*/
 	span.text     {color:black;}                                               /*текст пункта списка*/
-	span.nn       {color:buttonshadow; font-weight:bold;}                      /*имя узла*/
-	span.nt       {font:bold 10pt Verdana; cursor:text; margin-left:4px;}      /*текст узла*/
-	span.nan      {color:red; margin-left:4px;}                                /*имя атрибута*/
-	span.nav      {color:#3300FC;}                                             /*значение атрибута*/
+	span.name     {color:buttonshadow; font-weight:bold;}                      /*имя узла*/
+	span.value    {font:bold 10pt Verdana; cursor:text; margin-left:4px;}      /*текст узла*/
+	span.aname    {color:red; margin-left:4px;}                                /*имя атрибута*/
+	span.avalue   {color:#3300FC;}                                             /*значение атрибута*/
 
 	li            {list-style-type:circle; color:threeddarkshadow;}            /*обычный пункт списка*/
 	li.hidden     {list-style-type:square; background-color:#FFFF99;}          /*выделенный пункт списка*/
@@ -33,14 +33,12 @@
 	.help td.text {font:8pt MS Shell Dlg; white-space:nowrap;}                                                                               /*подсказка текст*/
 </style>
 <script type="text/javascript">
-	// Возвращает массив дочерних узлов указанного объекта имеющих тег tag
+	// Возвращает массив дочерних узлов указанного объекта obj имеющих тег tag
 	function Childs (obj, tag) {
 		var arr = [];
 		if ( (obj) && (obj.children) ) {
 			for(var i = 0, e; e = obj.children[i++];) {
-				if (e.tagName == tag) {
-					arr.push(e);
-				}
+				if (e.tagName == tag) arr.push(e);
 			}
 		}
 		return arr;
@@ -79,17 +77,17 @@
 	function ParseNode(Node, Item) {
 		var oLI = CreateElement(Item, 'LI');
 		var oSPAN = CreateElement(oLI, 'SPAN', 'text');
-		CreateElement(oSPAN, 'SPAN', 'nn', Node.nodeName); // Name
+		CreateElement(oSPAN, 'SPAN', 'name', Node.nodeName); // Name
 		if (Node.attributes) {
 			for (var i=0, nodeAttr; nodeAttr = Node.attributes[i++];) {
-				CreateElement(oSPAN, 'SPAN', 'nan', nodeAttr.nodeName); // Attribute Name
+				CreateElement(oSPAN, 'SPAN', 'aname', nodeAttr.nodeName); // Attribute Name
 				oSPAN.innerHTML += ':';
-				CreateElement(oSPAN, 'SPAN', 'nav', nodeAttr.nodeValue); // Attribute Value
+				CreateElement(oSPAN, 'SPAN', 'avalue', nodeAttr.nodeValue); // Attribute Value
 			}
 		}
 		for (var i=0, nodeChild; nodeChild = Node.childNodes[i++];) {
 			if (nodeChild.nodeName == '#text') {
-				CreateElement(oSPAN, 'SPAN', 'nt', nodeChild.nodeValue.replace(/^\s+|\s+$/, '')); // Value
+				CreateElement(oSPAN, 'SPAN', 'value', nodeChild.nodeValue.replace(/^\s+|\s+$/, '')); // Value
 			} else {
 				oLI.style.color = '#990066';
 				var oUL = CreateElement(oLI, 'UL');
