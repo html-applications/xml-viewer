@@ -8,7 +8,7 @@
 	icon=msxml3.dll
 	innerBorder=no
 	contextMenu=no
-	version=2.2.3
+	version=2.2.4
 	author=mozers™, mozers@mail.ru, icq#256106175
 >
 <style type="text/css">
@@ -51,11 +51,10 @@
 	}
 
 	// Создает и возвращает дочерний (относительно oParent) элемент
-	// с заданным тегом sTag, классом sClass и текстом sText
-	function CreateElement(oParent, sTag, sClass, sText) {
+	// с заданным тегом sTag, и произвольными свойствами aProps
+	function CreateElement(oParent, sTag, aProps) {
 		var newElement = oParent.appendChild(document.createElement(sTag));
-		if (sClass) newElement.className = sClass;
-		if (sText)  newElement.innerText = sText;
+		for (var prop in aProps) newElement[prop] = aProps[prop];
 		return newElement;
 	}
 
@@ -76,18 +75,18 @@
 	// Рекурсивный парсинг узла Node с записью содержимого в пункт списка Item
 	function ParseNode(Node, Item) {
 		var oLI = CreateElement(Item, 'LI');
-		var oSPAN = CreateElement(oLI, 'SPAN', 'text');
-		CreateElement(oSPAN, 'SPAN', 'name', Node.nodeName); // Name
+		var oSPAN = CreateElement(oLI, 'SPAN', {className:'text'});
+		CreateElement(oSPAN, 'SPAN', {className:'name', innerText:Node.nodeName}); // Name
 		if (Node.attributes) {
 			for (var i=0, nodeAttr; nodeAttr = Node.attributes[i++];) {
-				CreateElement(oSPAN, 'SPAN', 'aname', nodeAttr.nodeName); // Attribute Name
+				CreateElement(oSPAN, 'SPAN', {className:'aname', innerText:nodeAttr.nodeName}); // Attribute Name
 				oSPAN.innerHTML += ':';
-				CreateElement(oSPAN, 'SPAN', 'avalue', nodeAttr.nodeValue); // Attribute Value
+				CreateElement(oSPAN, 'SPAN', {className:'avalue', innerText:nodeAttr.nodeValue}); // Attribute Value
 			}
 		}
 		for (var i=0, nodeChild; nodeChild = Node.childNodes[i++];) {
 			if (nodeChild.nodeName == '#text') {
-				CreateElement(oSPAN, 'SPAN', 'value', nodeChild.nodeValue.replace(/^\s+|\s+$/, '')); // Value
+				CreateElement(oSPAN, 'SPAN', {className:'value', innerText:nodeChild.nodeValue.replace(/^\s+|\s+$/, '')}); // Value
 			} else {
 				oLI.style.color = '#990066';
 				var oUL = CreateElement(oLI, 'UL');
@@ -206,15 +205,15 @@
 		var arrXML = text.split('\n');
 		var oUL = CreateElement(idRange, 'UL');
 		for(var i = 0, line; line = arrXML[i++];) {
-			var oLI = CreateElement(oUL, 'LI', 'srctext');
+			var oLI = CreateElement(oUL, 'LI', {className:'srctext'});
 			if (i == err.line) { // подсветка строки с ошибкой
 				oLI.style.backgroundColor = "yellow"; 
 				var err_line_text = line.match(new RegExp('^(.{'+(err.linepos-1)+'})(.*)$'));
-				var oSPAN = CreateElement(oLI, 'SPAN', 'srctext', err_line_text[1]);
-				CreateElement(oSPAN, 'SPAN', 'errtext', err_line_text[2]); // текст после ошибочного символа
-				CreateElement(CreateElement(oLI, 'UL'), 'LI', 'reason', err.reason); // пояснение о причине ошибки
+				var oSPAN = CreateElement(oLI, 'SPAN', {className:'srctext', innerText:err_line_text[1]});
+				CreateElement(oSPAN, 'SPAN', {className:'errtext', innerText:err_line_text[2]}); // текст после ошибочного символа
+				CreateElement(CreateElement(oLI, 'UL'), 'LI', {className:'reason', innerText:err.reason}); // пояснение о причине ошибки
 			} else {
-				oSPAN = CreateElement(oLI, 'SPAN', 'srctext', line);
+				oSPAN = CreateElement(oLI, 'SPAN', {className:'srctext', innerText:line});
 			}
 		}
 	}
