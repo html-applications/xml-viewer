@@ -8,7 +8,7 @@
 	icon=msxml3.dll
 	innerBorder=no
 	contextMenu=no
-	version=2.3.0
+	version=2.4.0
 	author=mozers™, mozers@mail.ru, icq#256106175
 >
 <style type="text/css">
@@ -34,6 +34,8 @@
 	.help td.text {font:8pt MS Shell Dlg; white-space:nowrap;}                                                                               /*подсказка текст*/
 </style>
 <script type="text/javascript">
+	var current_file = ''; // полный путь к текущему файлу
+
 	// Возвращает массив дочерних узлов указанного объекта obj имеющих тег tag
 	function Childs (obj, tag) {
 		var arr = [];
@@ -107,6 +109,10 @@
 				idHelp.style.display = "";
 				setTimeout('idHelp.style.display="none"', 4000); // через 4 секунды скрываем подсказку
 				break;
+			case 113: // F2
+				DialogOpenFile();
+				LoadXMLFile();
+				break;
 			case 121: // F10
 				SetFileAssociation();
 		}
@@ -132,28 +138,16 @@
 		WindowResizeTo(width, height);
 	}
 
-	// Действия при старте программы
-	function on_load(){
-		document.title = idXMLViewer.applicationName.replace(/_/g,' ') + ' v.' + idXMLViewer.version;
-		// парсинг командной строки
-		var fname = idXMLViewer.commandLine;
-		fname = (/^"/.test(fname)) ? (fname.replace(/^"[^"]+"\s*/, '')) : (fname.replace(/^[^\s]+\s*/, ''));
-		fname = fname.replace(/^"(.+)"$/, '$1');
-		if (!fname) {
-			idFileName.click(); // диалог выбора имени файла
-			fname = idFileName.value;
-			if (!fname) self.close();
-		}
-		document.title = fname + ' - ' + document.title;
-
-		// загрузка XML документа
+	// Загрузка XML документа
+	function LoadXMLFile(){
+		document.title = current_file + ' - ' + idXMLViewer.title;
 		var xmlDoc = new ActiveXObject("Msxml2.DOMDocument");
 		xmlDoc.async = false;
-		xmlDoc.load (fname);
+		xmlDoc.load (current_file);
 		var err = xmlDoc.parseError;
 		if (err.errorCode) {
 			// показ XML как текста
-			ParseError(fname, err);
+			ParseError(err);
 		} else {
 			// парсинг XML документа
 			var oUL = CreateElement(idRange, 'UL');
@@ -165,8 +159,35 @@
 			};
 		}
 		WindowSetSize();
+	}
+
+	// Диалог выбора имени файла.
+	// Присваивает глобальной переменной current_file полный путь к выбранному файлу.
+	function DialogOpenFile() {
+		idFileName.click();
+		var fname = idFileName.value;
+		if (!fname) self.close(); // при отказе от выбора закрываем приложение
+		idRange.innerHTML = '';
+		current_file = fname;
+	}
+
+	// Действия при старте программы
+	function on_load(){
+		idXMLViewer.title = idXMLViewer.applicationName.replace(/_/g,' ') + ' v.' + idXMLViewer.version; // используем придуманное свойство title для хранения параметра (альтернатива глобальной переменной)
+		document.title = idXMLViewer.title;
+		// парсинг командной строки
+		var fname = idXMLViewer.commandLine;
+		fname = (/^"/.test(fname)) ? (fname.replace(/^"[^"]+"\s*/, '')) : (fname.replace(/^[^\s]+\s*/, ''));
+		fname = fname.replace(/^"(.+)"$/, '$1');
+		if (fname) {
+			current_file = fname;
+		} else {
+			DialogOpenFile();
+		}
+		LoadXMLFile(); // загрузка XML документа
 		setTimeout('idHelp.style.display="none"', 2000); // через 2 секунды скрываем подсказку
 	}
+
 </script>
 </head>
 <body onload="on_load()" onkeydown="OnKeyDown();">
@@ -176,6 +197,7 @@
 		<table class="help">
 			<tr><td class="key">&nbsp;Esc<td class="text">&nbsp;Exit Program
 			<tr><td class="key">&nbsp;F1<td class="text">&nbsp;This Help
+			<tr><td class="key">&nbsp;F2<td class="text">&nbsp;Load File
 			<tr><td class="key">&nbsp;F10<td class="text">&nbsp;Set Associate XML-files&nbsp;
 		</table>
 	</div>
@@ -201,23 +223,25 @@
 	}
 
 	// Обработка ошибки загрузки (показ XML как текста)
-	function ParseError(fname, err){
-		var text = ReadFile(fname, 'windows-1251');
-		if (/Р.Р.Р./.test(text)) text = ReadFile(fname, 'utf-8');
-		var arrXML = text.split('\n');
+	function ParseError(err){
+		var text = ReadFile(current_file, 'windows-1251');
+		if (/Р.Р.Р./.test(text)) text = ReadFile(current_file, 'utf-8');
+		var arrXML = text.match(/[^\r\n]+/g);
 		var oUL = CreateElement(idRange, 'UL');
 		for(var i = 0, line; line = arrXML[i++];) {
 			var oLI = CreateElement(oUL, 'LI', {className:'srctext'});
 			if (i == err.line) { // подсветка строки с ошибкой
-				oLI.style.backgroundColor = "yellow"; 
+				oLI.style.backgroundColor = "yellow";
+				oLI.id = "idErrLine";
 				var err_line_text = line.match(new RegExp('^(.{'+(err.linepos-1)+'})(.*)$'));
-				var oSPAN = CreateElement(oLI, 'SPAN', {className:'srctext', innerText:err_line_text[1]});
-				CreateElement(oSPAN, 'SPAN', {className:'errtext', innerText:err_line_text[2]}); // текст после ошибочного символа
+				CreateElement(oLI, 'SPAN', {className:'srctext', innerText:err_line_text[1]});
+				CreateElement(oLI, 'SPAN', {className:'errtext', innerText:err_line_text[2]}); // текст после ошибочного символа
 				CreateElement(CreateElement(oLI, 'UL'), 'LI', {className:'reason', innerText:err.reason}); // пояснение о причине ошибки
 			} else {
 				oSPAN = CreateElement(oLI, 'SPAN', {className:'srctext', innerText:line});
 			}
 		}
+		document.body.scrollTop = idErrLine.offsetTop;
 	}
 
 	// Связывание программы с xml файлами
