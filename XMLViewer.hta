@@ -8,8 +8,9 @@
 	icon=msxml3.dll
 	innerBorder=no
 	contextMenu=no
-	version=2.5.0
+	version=2.6.0
 	author=mozers™, mozers@mail.ru, icq#256106175
+	soauthor=JSman, icq#9166196
 >
 <style type="text/css">
 	*             {font:8pt MS Shell Dlg; cursor:default;}                              /*общие определения*/
@@ -75,28 +76,35 @@
 		}
 	}
 
-	// Рекурсивный парсинг узла Node с записью содержимого в пункт списка Item
-	function ParseNode(Node, Item) {
-		function Trim(str){
-			return str.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').replace(/^\s+/, '').replace(/\s+$/, '');
-		}
-		if (Node.nodeValue) {
-			CreateElement(Item, 'SPAN', {className: (Node.nodeName=='#text')?'value':'comment', innerText:Trim(Node.nodeValue)}); // Value | comment
-		} else {
-			var oLI = CreateElement(Item, 'LI');
-			CreateElement(oLI, 'SPAN', {className:'name', innerText:Node.nodeName}); // Name
-			if (Node.attributes) {
-				for (var i=0, nodeAttr; nodeAttr = Node.attributes[i++];) {
-					CreateElement(oLI, 'SPAN', {className:'aname', innerText:nodeAttr.nodeName}); // Attribute Name
-					CreateElement(oLI, 'SPAN', {className:'text', innerText:':'});
-					CreateElement(oLI, 'SPAN', {className:'avalue', innerText:Trim(nodeAttr.nodeValue)}); // Attribute Value
-				}
+	// Преобразование xml-кода в наш список
+	function ParseXML(Node) {
+		// Получает содержимое внути тегов <> (там - только имя и атрибуты) в виде строки вида 'TagName Attr1="aValue1"'
+		// Возвращает html-стринг описывающий это содержимое в виде '<LI><SPAN class=name>TagName</SPAN><SPAN class=aname>Attr1</SPAN><SPAN class=text>:</SPAN><SPAN class=avalue>aValue1</SPAN></LI>'
+		function Xml2Html(xml) {
+			function ParseElement(xml) {
+				var nodeName = "", Attrs = [], AttrsHTML = [];
+					xml = xml.replace(/^([^ ]+) */, function (q, q1) {nodeName = q1; return ""});
+					nodeName = "<UL><LI><SPAN class=name>" + nodeName + "</SPAN>";
+					if (xml == "") return (nodeName);
+					Attrs = xml.split(/="|"/);
+					for (var i=0, l=Attrs.length; i<l; i+=2) {
+						AttrsHTML.push("<SPAN class=aname>" + Attrs[i] + "</SPAN><SPAN class=text>:</SPAN><SPAN class=avalue>" + Attrs[i+1] + "</SPAN>");
+					}
+				return (nodeName + AttrsHTML.join(""));
 			}
+			// ----------------------------------------------------------------
+			var add = "";
+			if (/<!--/.test(xml)) return "<SPAN class=comment>"+xml.replace(/^<!--/, "").replace(/-->$/, "") + "</SPAN>";
+			if (/<\//.test(xml)) return ("</LI></UL>" + add);
+			if (/</.test(xml)) return (ParseElement(xml.replace(/[<>]/g, "")) + add);
+			return "<SPAN class=value>" + xml + "</SPAN>" + add;
 		}
-		for (var i=0, nodeChild; nodeChild = Node.childNodes[i++];) {
-			if (!nodeChild.nodeValue) oLI.style.color = '#990066';
-			ParseNode (nodeChild, (nodeChild.nodeValue) ? oLI : CreateElement(oLI, 'UL'));
-		}
+		// ----------------------------------------------------------------
+		// Получаем xml-текст
+		var xmlText = Node.xml.replace(/\r?\n/g, "").replace(/>\s+</g, "><").replace(/\/>/g, "></tag>").replace(/"\s+>/g,"\">");
+		// Преобразовываем xml-текст в html-список
+		xmlText = xmlText.replace(/<!--.*-->|<[^<>]+>|[^<>]+/g, Xml2Html);
+		idRange.innerHTML = xmlText;
 	}
 
 	// Обработка нажатий на клавиши
@@ -150,8 +158,7 @@
 			ParseError(err);
 		} else {
 			// парсинг XML документа
-			var oUL = CreateElement(idRange, 'UL');
-			ParseNode (xmlDoc.documentElement, oUL);
+			ParseXML (xmlDoc.documentElement);
 			// добавляем эвент для свертки строк
 			document.onclick = function() {
 				var parentLI = GetParent(event.srcElement, 'LI');
