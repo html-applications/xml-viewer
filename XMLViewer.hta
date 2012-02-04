@@ -8,7 +8,7 @@
 	icon=msxml3.dll
 	innerBorder=no
 	contextMenu=no
-	version=2.6.0
+	version=2.8.0
 	author=mozers™, mozers@mail.ru, icq#256106175
 	soauthor=JSman, icq#9166196
 >
@@ -171,8 +171,8 @@
 	// Диалог выбора имени файла.
 	// Присваивает глобальной переменной current_file полный путь к выбранному файлу.
 	function DialogOpenFile() {
-		idFileName.click();
-		var fname = idFileName.value;
+		//idFileName.click();
+		var fname = HtmlDlgHelper.openfiledlg("","","XML-документы (*.xml;*.xsl)|*.xml;*.xsl|Все файлы (*.*)|*.*|", "Открытие XML-документа");
 		if (!fname) self.close(); // при отказе от выбора закрываем приложение
 		idRange.innerHTML = '';
 		current_file = fname;
@@ -198,8 +198,8 @@
 </script>
 </head>
 <body onload="on_load()" onkeydown="OnKeyDown();">
+	<object id=HtmlDlgHelper classid='clsid:3050F4E1-98B5-11CF-BB82-00AA00BDCE0B' width=0 height=0></object>
 	<table><tr><td id="idRange"></table>
-	<input id="idFileName" type="file" style="display:none;">
 	<div id="idHelp" class="help">
 		<table class="help">
 			<tr><td class="key">&nbsp;Esc<td class="text">&nbsp;Exit Program
