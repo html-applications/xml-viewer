@@ -185,7 +185,7 @@
 		// парсинг командной строки
 		var fname = idXMLViewer.commandLine;
 		fname = (/^"/.test(fname)) ? (fname.replace(/^"[^"]+"\s*/, '')) : (fname.replace(/^[^\s]+\s*/, ''));
-		fname = fname.replace(/^"(.+)"$/, '$1');
+		fname = fname.replace(/"/g, '');
 		if (fname) {
 			current_file = fname;
 		} else {
