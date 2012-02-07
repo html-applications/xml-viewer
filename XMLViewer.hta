@@ -8,18 +8,19 @@
 	icon=msxml3.dll
 	innerBorder=no
 	contextMenu=no
-	version=2.8.0
+	version=3.0.0
 	author=mozers™, mozers@mail.ru, icq#256106175
 	soauthor=JSman, icq#9166196
+	soauthor=Rumata, http://forum.script-coding.com
 >
 <style type="text/css">
-	*             {font:8pt MS Shell Dlg; cursor:default;}                              /*общие определения*/
-	span.text     {color:black;}                                                        /*текст пункта списка*/
-	span.name     {color:buttonshadow; font-weight:bold;}                               /*имя узла*/
-	span.value    {font:bold 10pt Verdana; cursor:text; margin-left:4px; color:black;}  /*текст узла*/
-	span.comment  {font:bold 10pt Verdana; cursor:text; margin-left:4px; color:#999999} /*комментарий*/
-	span.aname    {color:red; margin-left:4px;}                                         /*имя атрибута*/
-	span.avalue   {color:#3300FC;}                                                      /*значение атрибута*/
+	*             {font:8pt MS Shell Dlg; cursor:default;}                                              /*общие определения*/
+	span.text     {color:black;}                                                                        /*текст пункта списка*/
+	span.name     {color:buttonshadow; font-weight:bold;}                                               /*имя узла*/
+	span.comment  {font:bold 10pt Verdana; cursor:text; margin-left:4px; color:#999999}                 /*комментарий*/
+	span.aname    {color:red; margin-left:4px;}                                                         /*имя атрибута*/
+	span.avalue   {color:#3300FC;}                                                                      /*значение атрибута*/
+	div.children  {display:inline; font:bold 10pt Verdana; cursor:text; margin-left:4px; color:black;}  /*текст узла и дочерних*/
 
 	li            {list-style-type:circle; color:threeddarkshadow;}            /*обычный пункт списка*/
 	li.hidden     {list-style-type:square; background-color:#FFFF99;}          /*выделенный пункт списка*/
@@ -34,19 +35,28 @@
 	.help td.key  {font:normal 8pt Arial Black; color:#993300;}                                                                              /*подсказка клавиши*/
 	.help td.text {font:8pt MS Shell Dlg; white-space:nowrap;}                                                                               /*подсказка текст*/
 </style>
+<xml id="idXSL">
+<?xml version="1.0" ?>
+<xsl:stylesheet version = "1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+<xsl:template match="*">
+	<ul><li>
+		<span class="name"><xsl:value-of select="name()" /></span>
+		<xsl:apply-templates select="@*" />
+		<div class="children"><xsl:apply-templates /></div>
+	</li></ul>
+</xsl:template>
+<xsl:template match="@*">
+	<span class="aname"><xsl:value-of select="name()" /></span>
+	<span class="text">:</span>
+	<span class="avalue"><xsl:value-of select="." /></span>
+</xsl:template>
+<xsl:template match="comment()">
+	<span class="comment"><xsl:value-of select="." /></span>
+</xsl:template>
+</xsl:stylesheet>
+</xml>
 <script type="text/javascript">
 	var current_file = ''; // полный путь к текущему файлу
-
-	// Возвращает массив дочерних узлов указанного объекта obj имеющих тег tag
-	function Childs (obj, tag) {
-		var arr = [];
-		if ( (obj) && (obj.children) ) {
-			for(var i = 0, e; e = obj.children[i++];) {
-				if (e.tagName == tag) arr.push(e);
-			}
-		}
-		return arr;
-	}
 
 	// Возвращает ближайший родительский (относительно obj) объект с тегом parentTagName
 	function GetParent(obj, parentTagName) {
@@ -62,49 +72,18 @@
 		return newElement;
 	}
 
-	// Выделение строки списка objLI и скрытие дочерних строк (снятие выделения и скрытия)
-	function ShowHide(objLI) {
-		var child_items = Childs(objLI, 'UL');
-		if (child_items.length > 0) {
-			var hide = objLI.className != 'hidden';
-			// смена стиля строки назначением|снятием класса 'hidden'
-			objLI.className = (hide) ? 'hidden' : '';
-			// скрытие|показ дочерних строк
-			for(var i = 0, ci; ci = child_items[i++];) {
-				ci.style.display = (hide) ? 'none' : '';
+	// Выделение строки списка objLI и свертка дочерних строк
+	function ToggleFold(){
+		var oLI = GetParent(event.srcElement, 'LI');
+		if (oLI) { // если найден родительский узел с тегом LI
+			if (oLI.getElementsByTagName('LI').length > 0) { // если есть дочерние строки
+				var hide = oLI.className != 'hidden';
+				// смена стиля строки назначением|снятием класса 'hidden'
+				oLI.className = (hide) ? 'hidden' : '';
+				// скрытие|показ дочерних строк
+				oLI.getElementsByTagName('DIV')[0].style.display = (hide) ? 'none' : '';
 			}
 		}
-	}
-
-	// Преобразование xml-кода в наш список
-	function ParseXML(Node) {
-		// Получает содержимое внути тегов <> (там - только имя и атрибуты) в виде строки вида 'TagName Attr1="aValue1"'
-		// Возвращает html-стринг описывающий это содержимое в виде '<LI><SPAN class=name>TagName</SPAN><SPAN class=aname>Attr1</SPAN><SPAN class=text>:</SPAN><SPAN class=avalue>aValue1</SPAN></LI>'
-		function Xml2Html(xml) {
-			function ParseElement(xml) {
-				var nodeName = "", Attrs = [], AttrsHTML = [];
-					xml = xml.replace(/^([^ ]+) */, function (q, q1) {nodeName = q1; return ""});
-					nodeName = "<UL><LI><SPAN class=name>" + nodeName + "</SPAN>";
-					if (xml == "") return (nodeName);
-					Attrs = xml.split(/="|"/);
-					for (var i=0, l=Attrs.length; i<l; i+=2) {
-						AttrsHTML.push("<SPAN class=aname>" + Attrs[i] + "</SPAN><SPAN class=text>:</SPAN><SPAN class=avalue>" + Attrs[i+1] + "</SPAN>");
-					}
-				return (nodeName + AttrsHTML.join(""));
-			}
-			// ----------------------------------------------------------------
-			var add = "";
-			if (/<!--/.test(xml)) return "<SPAN class=comment>"+xml.replace(/^<!--/, "").replace(/-->$/, "") + "</SPAN>";
-			if (/<\//.test(xml)) return ("</LI></UL>" + add);
-			if (/</.test(xml)) return (ParseElement(xml.replace(/[<>]/g, "")) + add);
-			return "<SPAN class=value>" + xml + "</SPAN>" + add;
-		}
-		// ----------------------------------------------------------------
-		// Получаем xml-текст
-		var xmlText = Node.xml.replace(/\r?\n/g, "").replace(/>\s+</g, "><").replace(/\/>/g, "></tag>").replace(/"\s+>/g,"\">");
-		// Преобразовываем xml-текст в html-список
-		xmlText = xmlText.replace(/<!--.*-->|<[^<>]+>|[^<>]+/g, Xml2Html);
-		idRange.innerHTML = xmlText;
 	}
 
 	// Обработка нажатий на клавиши
@@ -158,12 +137,9 @@
 			ParseError(err);
 		} else {
 			// парсинг XML документа
-			ParseXML (xmlDoc.documentElement);
+			idRange.innerHTML = xmlDoc.transformNode(idXSL);
 			// добавляем эвент для свертки строк
-			document.onclick = function() {
-				var parentLI = GetParent(event.srcElement, 'LI');
-				if (parentLI) ShowHide(parentLI);
-			};
+			document.onclick = ToggleFold;
 		}
 		WindowSetSize();
 	}
@@ -171,7 +147,6 @@
 	// Диалог выбора имени файла.
 	// Присваивает глобальной переменной current_file полный путь к выбранному файлу.
 	function DialogOpenFile() {
-		//idFileName.click();
 		var fname = HtmlDlgHelper.openfiledlg("","","XML-документы (*.xml;*.xsl)|*.xml;*.xsl|Все файлы (*.*)|*.*|", "Открытие XML-документа");
 		if (!fname) self.close(); // при отказе от выбора закрываем приложение
 		idRange.innerHTML = '';
