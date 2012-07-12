@@ -8,7 +8,7 @@
 	icon=msxml3.dll
 	innerBorder=no
 	contextMenu=no
-	version=3.1.0
+	version=3.1.1
 	author=mozers™, mozers@mail.ru, icq#256106175
 	soauthor=JSman, icq#9166196
 	soauthor=Rumata, http://forum.script-coding.com
@@ -223,7 +223,10 @@
 	function SetFileAssociation(){
 		var WshShell = new ActiveXObject("WScript.Shell");
 		var xml_viever_cmd = 'mshta.exe "' + unescape(document.URL).replace(/^file:\/\/(.+)$/, '$1') + '" %1';
-		var cmd = WshShell.RegRead('HKCR\\xmlfile\\shell\\Open\\command\\');
+		var cmd = '';
+		try {
+			cmd = WshShell.RegRead('HKCR\\xmlfile\\shell\\Open\\command\\');
+		} catch(e) {}
 		if (cmd != xml_viever_cmd) {
 			if (WshShell.Popup('Associate XML, XSL files with the XMLViewer?', 0, "Set file association", 36) == 6) {
 				var this_path = unescape(document.URL).replace(/^file:\/\/(.+?)[^\\]+$/, '$1');
@@ -231,7 +234,9 @@
 				WshShell.Run('regedit \/E "' + this_path + 'return_xsl_association.reg" "HKEY_CLASSES_ROOT\\xslfile\\shell\\Open"', 0, true);
 				RegDeleteKeys("HKCR\\xmlfile\\shell\\Open\\ddeexec");
 				RegDeleteKeys("HKCR\\xslfile\\shell\\Open\\ddeexec");
+				WshShell.RegWrite('HKCR\\xmlfile\\shell\\Open\\', '');
 				WshShell.RegWrite('HKCR\\xmlfile\\shell\\Open\\command\\', xml_viever_cmd, 'REG_EXPAND_SZ');
+				WshShell.RegWrite('HKCR\\xslfile\\shell\\Open\\', '');
 				WshShell.RegWrite('HKCR\\xslfile\\shell\\Open\\command\\', xml_viever_cmd, 'REG_EXPAND_SZ');
 			}
 		}
