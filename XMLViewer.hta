@@ -3,16 +3,16 @@
 <meta http-equiv=content-type content="text-html; charset=utf-8">
 <meta http-equiv=MSThemeCompatible content=yes>
 <hta:application
-	id=idXMLViewer
-	applicationName=XMLViewer
-	icon=msxml3.dll
-	innerBorder=no
-	contextMenu=no
-	version=3.1.1
-	author=mozers™, mozers@mail.ru, icq#256106175
-	soauthor=JSman, icq#9166196
-	soauthor=Rumata, http://forum.script-coding.com
->
+	id="idXMLViewer"
+	applicationName="XML Viewer"
+	icon="msxml3.dll"
+	innerBorder="no"
+	contextMenu="no"
+	version="3.1.2"
+	author="mozers™, mozers@mail.ru, icq#256106175"
+	soauthor="JSman, icq#9166196"
+	soauthor="Rumata, http://forum.script-coding.com"
+ />
 <style type="text/css">
 	*             {font:8pt MS Shell Dlg; cursor:default;}                                              /*общие определения*/
 	span.text     {color:black;}                                                                        /*текст пункта списка*/
@@ -148,7 +148,7 @@
 
 	// Действия при старте программы
 	function on_load(){
-		idXMLViewer.title = idXMLViewer.applicationName.replace(/_/g,' ') + ' v.' + idXMLViewer.version; // используем придуманное свойство title для хранения параметра (альтернатива глобальной переменной)
+		idXMLViewer.title = idXMLViewer.applicationName + ' v.' + idXMLViewer.version; // используем придуманное свойство title для хранения параметра (альтернатива глобальной переменной)
 		document.title = idXMLViewer.title;
 		// парсинг командной строки
 		var fname = idXMLViewer.commandLine;
